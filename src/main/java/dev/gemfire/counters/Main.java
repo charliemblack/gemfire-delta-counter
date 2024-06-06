@@ -6,65 +6,88 @@ import org.apache.geode.cache.client.ClientCache;
 import org.apache.geode.cache.client.ClientCacheFactory;
 import org.apache.geode.cache.client.ClientRegionShortcut;
 import org.apache.geode.cache.util.CacheListenerAdapter;
+import org.apache.logging.log4j.core.util.Integers;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@SpringBootApplication
 public class Main {
 
-    public static void main(String[] args) throws Exception{
-        ClientCache clientCache = new ClientCacheFactory()
-                .addPoolLocator("192.168.1.109", 10334)
-                .setPoolPRSingleHopEnabled(true)
-                .setPoolSubscriptionEnabled(true)
-                .create();
+    @Value("${dev.gemfire.counters.main.primeRegion:false}")
+    private boolean primeRegion = false;
+    public static void main(String[] args) {
 
-        final AtomicInteger atomicInteger = new AtomicInteger(0);
+        SpringApplication.run(Main.class, args);
+    }
+    @Bean
+    CommandLineRunner run(@Value("${gemfire.locator.port:10334}") int port) {
+        return args -> {
+            ClientCache clientCache = new ClientCacheFactory()
+                    .addPoolLocator("localhost", port)
+                    .setPoolPRSingleHopEnabled(true)
+                    .setPoolSubscriptionEnabled(true)
+                    .create();
+            final AtomicInteger atomicInteger = new AtomicInteger(0);
 
-        final Region<String, DeltaCounter> accumulatorRegion = clientCache.<String, DeltaCounter>createClientRegionFactory(ClientRegionShortcut.PROXY).create("accumulatorRegion");
-        accumulatorRegion.getAttributesMutator().addCacheListener(new CacheListenerAdapter<String, DeltaCounter>() {
-            @Override
-            public void afterCreate(EntryEvent<String, DeltaCounter> event) {
-                afterUpdate(event);
-            }
-            @Override
-            public void afterUpdate(EntryEvent<String, DeltaCounter> event) {
-                //System.out.println("event.getNewValue() = " + event.getNewValue() + " current counter" + atomicInteger.get());
-            }
-        });
-        //Reset the counter
-        accumulatorRegion.put("name", new DeltaCounter());
-        ArrayList<Thread> threads = new ArrayList<>();
-        final long start = System.currentTimeMillis();
-        for(int i = 0; i < 100; i++) {
-            Thread t = new Thread(() -> {
-                DeltaCounter counter = new DeltaCounter();
-                for(int j = 0; j < 100000; j++) {
-                    if(atomicInteger.incrementAndGet() >= 400000){
-                        int deltaCounter = DeltaCounterFunction.increment(accumulatorRegion, "name", 1, 400000);
-                        long duration = System.currentTimeMillis() - start;
-                        System.out.println("delta counter " + deltaCounter + " time " + duration + " per second " + (400000/TimeUnit.MILLISECONDS.toSeconds(duration)));
-                        break;
-                    }else {
-                        DeltaCounterFunction.increment(accumulatorRegion, "name", 1, 400000);
-                    }
+            final Region<String, DeltaCounter> accumulatorRegion = clientCache
+                    .<String, DeltaCounter>createClientRegionFactory(ClientRegionShortcut.PROXY)
+                    .create("accumulatorRegion");
+            accumulatorRegion.registerInterestForAllKeys();
+            CountDownLatch countDownLatch = new CountDownLatch(1);
+            accumulatorRegion.getAttributesMutator().addCacheListener(new CacheListenerAdapter<String, DeltaCounter>() {
+                @Override
+                public void afterCreate(EntryEvent<String, DeltaCounter> event) {
+                    afterUpdate(event);
+                }
+
+                @Override
+                public void afterUpdate(EntryEvent<String, DeltaCounter> event) {
+                    countDownLatch.countDown();
+                    System.out.println("event.getNewValue() = " + event.getNewValue() + " current counter" + atomicInteger.get());
                 }
             });
-            t.start();
-            threads.add(t);
-        }
-        threads.forEach(thread -> {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            if(primeRegion){
+                accumulatorRegion.put("name", new DeltaCounter());
             }
-        });
-        System.out.println("accumulatorRegion = " + accumulatorRegion.get("name"));
-        System.out.println("atomicInteger = " + atomicInteger);
-        Thread.sleep(5 * 1000);
-        System.out.println("accumulatorRegion = " + accumulatorRegion.get("name"));
-        System.out.println("atomicInteger = " + atomicInteger);
+            countDownLatch.await();
+            // Reset the counter
+
+            List<Thread> threads = new ArrayList<>();
+            final long start = System.currentTimeMillis();
+
+            for (int i = 0; i < 10; i++) {
+                Thread t = new Thread(() -> {
+                    DeltaCounter counter = new DeltaCounter();
+                    for (int j = 0; j < 100; j++) {
+                            DeltaCounterFunction.increment(accumulatorRegion, "name", 1, 400000);
+                    }
+                });
+                t.start();
+                threads.add(t);
+            }
+
+            for (Thread thread : threads) {
+                try {
+                    thread.join();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            System.out.println("accumulatorRegion = " + accumulatorRegion.get("name"));
+            System.out.println("atomicInteger = " + atomicInteger);
+            Thread.sleep(5 * 1000);
+            System.out.println("accumulatorRegion = " + accumulatorRegion.get("name"));
+            System.out.println("atomicInteger = " + atomicInteger);
+        };
     }
 }

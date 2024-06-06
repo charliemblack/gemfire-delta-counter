@@ -1,0 +1,42 @@
+spring:
+  profiles:
+    active: site1
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    org.apache.geode: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: site1
+  name: site1
+
+dev:
+  gemfire:
+    counters:
+      main:
+        primeRegion: true
+
+gemfire:
+  locator:
+    port: 10334
+
+---
+spring:
+  config:
+    activate:
+      on-profile: site2
+  name: site2
+
+dev:
+  gemfire:
+    counters:
+      main:
+        primeRegion: false
+gemfire:
+  locator:
+    port: 20334

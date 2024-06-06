@@ -1,27 +1,31 @@
-apply plugin: 'java'
-apply plugin: 'application'
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.7.4' // Use the appropriate version for your project
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+    maven {
+        credentials {
+            username "$mavenUser"
+            password "$mavenPassword"
+        }
+        url "https://commercial-repo.pivotal.io/data3/gemfire-release-repo/gemfire"
+    }
+}
 
 dependencies {
-    repositories {
-        mavenCentral()
-        mavenLocal()
-        maven {
-            credentials {
-                username "$mavenUser"
-                password "$mavenPassword"
-            }
-            url "https://commercial-repo.pivotal.io/data3/gemfire-release-repo/gemfire"
-        }
-    }
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.22.1'
-    implementation  "com.vmware.gemfire:gemfire-core:10.1.0"
-    implementation  "com.vmware.gemfire:gemfire-logging:10.1.0"
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-logging'
+    implementation 'org.apache.logging.log4j:log4j-core:2.22.1'
+    implementation 'org.apache.logging.log4j:log4j-api:2.22.1' // Add log4j-api dependency
+    implementation 'com.vmware.gemfire:gemfire-core:10.1.0'
+    implementation 'com.vmware.gemfire:gemfire-logging:10.1.0'
 }
 
-ext {
-    javaMainClass = "dev.gemfire.counters.Main"
-}
-
-application {
-    mainClassName = javaMainClass
+bootJar {
+    mainClassName = 'dev.gemfire.counters.Main'
 }

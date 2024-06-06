@@ -39,3 +39,9 @@ int deltaCounter = DeltaCounterFunction.increment(accumulatorRegion, "name", 1, 
 
 In some instances all we care about is sending the commands to alter state, and it is up to some other process in an event driven architecture to perform any work.   Here we can just create an instance of our `DeltaCounter` apply any changes and do a `put` performing the same single network hop.
 
+### A WAN Test Case
+With the current configuration there is a problem with the DELTA across the WAN has an issue.   To run the code and see how this works:
+
+1) gradlew 
+2) startGemFireWAN.bat - this starts up to GemFire clusters site 1 and site 2.   Once the two systems are up and running it then uploads the functions then it configures a WAN between the two sites with a region for the application to use.
+2) runWANExample.bat - this launches two applications where one client is jamming in data into one cluster while another client is jamming in data in another cluster.    When the client is done the expected value is supposed to be 2k as currently committed.
