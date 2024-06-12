@@ -4,6 +4,7 @@ import org.apache.geode.cache.EntryEvent;
 import org.apache.geode.cache.Region;
 import org.apache.geode.cache.client.ClientCache;
 import org.apache.geode.cache.client.ClientCacheFactory;
+import org.apache.geode.cache.client.ClientRegionFactory;
 import org.apache.geode.cache.client.ClientRegionShortcut;
 import org.apache.geode.cache.util.CacheListenerAdapter;
 import org.apache.logging.log4j.core.util.Integers;
@@ -38,11 +39,12 @@ public class Main {
                     .create();
             final AtomicInteger atomicInteger = new AtomicInteger(0);
 
-            final Region<String, DeltaCounter> accumulatorRegion = clientCache
-                    .<String, DeltaCounter>createClientRegionFactory(ClientRegionShortcut.PROXY)
-                    .create("accumulatorRegion");
+            ClientRegionFactory<String, DeltaCounter> clientRegionFactory = clientCache
+                    .<String, DeltaCounter>createClientRegionFactory(ClientRegionShortcut.PROXY);
+            clientRegionFactory.setConcurrencyChecksEnabled(false);
+            final Region<String, DeltaCounter> accumulatorRegion = clientRegionFactory.create("accumulatorRegion");
             accumulatorRegion.registerInterestForAllKeys();
-            CountDownLatch countDownLatch = new CountDownLatch(1);
+            CountDownLatch countDownLatch = new CountDownLatch(2);
             accumulatorRegion.getAttributesMutator().addCacheListener(new CacheListenerAdapter<String, DeltaCounter>() {
                 @Override
                 public void afterCreate(EntryEvent<String, DeltaCounter> event) {
@@ -52,7 +54,6 @@ public class Main {
                 @Override
                 public void afterUpdate(EntryEvent<String, DeltaCounter> event) {
                     countDownLatch.countDown();
-                    System.out.println("event.getNewValue() = " + event.getNewValue() + " current counter" + atomicInteger.get());
                 }
             });
             if(primeRegion){

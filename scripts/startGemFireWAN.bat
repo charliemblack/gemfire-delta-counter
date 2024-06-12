@@ -33,7 +33,6 @@ start "startingGemFireLocator" /min cmd /c ^
 
 :: Specify the delay between each check
 set "delay=5"
-echo after delay 5 is set
 
 :: Loop through each port
 for %%p in (7070 6080) do (
@@ -84,17 +83,17 @@ echo Servers started at %TIME%
 
 :CONTINUE
 
-start /wait cmd /c "gfsh -e ^"connect --locator=localhost[10334]^" -e ^"create gateway-receiver^" -e ^"create gateway-sender --id=sender --remote-distributed-system-id=2 --parallel=true^" -e ^"create region --name=accumulatorRegion --type=PARTITION_REDUNDANT --gateway-sender-id=sender^" -e ^"deploy --jar=%APP_HOME%/build/libs/gemfire-delta-counter-plain.jar^" -e ^"list regions^""
+start /wait cmd /c "gfsh -e ^"connect --locator=localhost[10334]^" -e ^"create gateway-receiver^" -e ^"create gateway-sender --id=sender --remote-distributed-system-id=2 --parallel=true^" -e ^"create region --name=accumulatorRegion --type=PARTITION_REDUNDANT --gateway-sender-id=sender --enable-concurrency-checks=false^" -e ^"deploy --jar=%APP_HOME%/build/libs/gemfire-delta-counter-plain.jar^" -e ^"list regions^""
 echo Finished Config 10334
 
-start /wait cmd /c "gfsh -e ^"connect --locator=localhost[20334]^" -e ^"create gateway-receiver^" -e ^"create gateway-sender --id=sender --remote-distributed-system-id=1 --parallel=true^" -e ^"create region --name=accumulatorRegion --type=PARTITION_REDUNDANT --gateway-sender-id=sender^" -e ^"deploy --jar=%APP_HOME%/build/libs/gemfire-delta-counter-plain.jar^" -e ^"list regions^""
+start /wait cmd /c "gfsh -e ^"connect --locator=localhost[20334]^" -e ^"create gateway-receiver^" -e ^"create gateway-sender --id=sender --remote-distributed-system-id=1 --parallel=true^" -e ^"create region --name=accumulatorRegion --type=PARTITION_REDUNDANT --gateway-sender-id=sender --enable-concurrency-checks=false^" -e ^"deploy --jar=%APP_HOME%/build/libs/gemfire-delta-counter-plain.jar^" -e ^"list regions^""
 echo Finished Config 20334
 
+echo GemFire and configured at %TIME%
 goto :EOF
 
 :CHECK_PORT
 set "port=%1"
-echo Checking port %port%
 
 :PORT_CHECK_LOOP
 :: Use PowerShell to check if the port is open
@@ -110,5 +109,4 @@ c:\Windows\System32\timeout.exe /T %delay% /NOBREAK >nul
 goto PORT_CHECK_LOOP
 
 :END_PORT_CHECK
-echo Port %port% is open
 goto :EOF
