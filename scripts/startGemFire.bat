@@ -87,9 +87,6 @@ if "%allStarted%" equ "false" (
 )
 echo Servers started at %TIME%
 :CONTINUE
-gfsh -e "connect --locator=%LOCATORS%" -e "deploy --jar %APP_HOME%/tracker-lib/build/libs/tracker-lib.jar" -e "create lucene index --name=simpleIndex --region=geoSpatialRegion --field=uid --serializer=demo.gemfire.asset.tracker.lib.LocationInfoSerializer" -e "create region --name=geoSpatialRegion --type=PARTITION_REDUNDANT"
-echo GemFire started and configured at %TIME%
-
 
 gfsh -e "connect --locator=%LOCATORS%" -e "create region --name=accumulatorRegion --type=PARTITION_REDUNDANT" -e "deploy --jar=%APP_HOME%/build/libs/gemfire-delta-counter.jar"
 REM gfsh -e "connect --locator=%LOCATORS%" -e "create region --name=accumulatorRegion --type=PARTITION_REDUNDANT"

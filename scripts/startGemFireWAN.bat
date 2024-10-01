@@ -54,14 +54,14 @@ del /F /Q "%APP_HOME%\data\processfile.txt" 2>nul
 for %%i in (1 2) do (
     set /a port=7070 + %%i * 10
     start "startingGemFireServer%%i" /min cmd /c ^
-    "gfsh -e ^"connect --locator=%LOCATORS_SiteA%^" -e ^"start server --name=server%%i --J=-Dgemfire.remote-locators=localhost[20334] --J=-Dgemfire.distributed-system-id=1 --locators=localhost[10334] --dir=%APP_HOME%\data\server%%i --start-rest-api=true --http-service-port=!port! %COMMON_SERVER_ITEMS%^" ^& echo server%%i ^>^> %APP_HOME%\data\processfile.txt"
+    "gfsh -e ^"connect --locator=%LOCATORS_SiteA%^" -e ^"start server --name=server%%i --J=-Dgemfire.remote-locators=localhost[20334] --J=-Dgemfire.distributed-system-id=1 --locators=localhost[10334] --dir=%APP_HOME%\data\server%%i --start-rest-api=true --enable-time-statistics=true --statistic-archive-file=stats.gfs --http-service-port=!port! %COMMON_SERVER_ITEMS%^" ^& echo server%%i ^>^> %APP_HOME%\data\processfile.txt"
 )
 
 :: Start multiple servers for SiteB
 for %%i in (3 4) do (
     set /a port=7070 + %%i * 10
     start "startingGemFireServer%%i" /min cmd /c ^
-    "gfsh -e ^"connect --locator=%LOCATORS_SiteB%^" -e ^"start server --name=server%%i --J=-Dgemfire.distributed-system-id=2 --J=-Dgemfire.remote-locators=localhost[10334] --locators=localhost[20334] --dir=%APP_HOME%\data\server%%i --start-rest-api=true --http-service-port=!port! %COMMON_SERVER_ITEMS%^" ^& echo server%%i ^>^> %APP_HOME%\data\processfile.txt"
+    "gfsh -e ^"connect --locator=%LOCATORS_SiteB%^" -e ^"start server --name=server%%i --J=-Dgemfire.distributed-system-id=2 --J=-Dgemfire.remote-locators=localhost[10334] --locators=localhost[20334] --dir=%APP_HOME%\data\server%%i --start-rest-api=true --enable-time-statistics=true --statistic-archive-file=stats.gfs --http-service-port=!port! %COMMON_SERVER_ITEMS%^" ^& echo server%%i ^>^> %APP_HOME%\data\processfile.txt"
 )
 
 :: Monitor server startup
