@@ -10,14 +10,15 @@ repositories {
     mavenLocal()
     maven {
         credentials {
-            username "$mavenUser"
-            password "$mavenPassword"
+            username "$broadcomUser"
+            password "$broadcomPassword"
         }
         url "https://commercial-repo.pivotal.io/data3/gemfire-release-repo/gemfire"
     }
 }
 
 dependencies {
+    implementation 'io.micrometer:micrometer-core:1.13.4'
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-logging'
     implementation 'org.apache.logging.log4j:log4j-core:2.22.1'

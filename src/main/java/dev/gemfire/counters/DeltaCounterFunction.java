@@ -15,11 +15,18 @@ import java.util.Set;
 
 public class DeltaCounterFunction implements Function {
 
+    public static final String ID = "DeltaCounterFunction";
+    static final Map<String, Object> lockMap = new HashMap<>();
     private static final Logger logger = LogService.getLogger();
 
-    public static final String ID = "DeltaCounterFunction";
+    public static int increment(Region region, String counterName, int deltaChange, int maxValue) {
 
-    static final Map<String, Object> lockMap = new HashMap<>();
+        ResultCollector collector = FunctionService.onRegion(region)
+                .withFilter(Set.of(counterName)) //important since we will be sending to the primary and this is how.
+                .setArguments(new DeltaCounterFunctionArguments(counterName, deltaChange, maxValue))
+                .execute(ID);
+        return ((Collection<Integer>) collector.getResult()).iterator().next();
+    }
 
     @Override
     public void execute(FunctionContext functionContext) {
@@ -33,30 +40,23 @@ public class DeltaCounterFunction implements Function {
             Region<String, DeltaCounter> deltaCounterRegion = rfc.getDataSet();
             DeltaCounterFunctionArguments arguments = rfc.getArguments();
             String counterName = arguments.getCounterName();
-            DistributedLockService dls = getLockService(rfc);
-            //I am going a little overboard with the "global" locking.
-            try {
-                dls.lock(counterName, -1, -1);
-                // the key to this is not having GemFire in copy on read mode.
-                final DeltaCounter counter = deltaCounterRegion.get(arguments.getCounterName());
-                if (counter == null) {
-                    deltaCounterRegion.put(arguments.getCounterName(), new DeltaCounter(arguments.getDeltaChange()));
-                    rfc.getResultSender().lastResult(arguments.getDeltaChange());
+            // the key to this is not having GemFire in copy on read mode.
+            final DeltaCounter counter = deltaCounterRegion.get(arguments.getCounterName());
+            if (counter == null) {
+                deltaCounterRegion.put(arguments.getCounterName(), new DeltaCounter(arguments.getDeltaChange()));
+                rfc.getResultSender().lastResult(arguments.getDeltaChange());
+            } else {
+                if (counter.getValue() + arguments.getDeltaChange() > arguments.getMaxValue()) {
+                    // we have gone over - I am going to return potential value but not store it  ¯\_(ツ)_/¯
+                    rfc.getResultSender().lastResult(counter.getValue() + arguments.getDeltaChange());
                 } else {
-                    if (counter.getValue() + arguments.getDeltaChange() > arguments.getMaxValue()) {
-                        // we have gone over - I am going to return potential value but not store it  ¯\_(ツ)_/¯
-                        rfc.getResultSender().lastResult(counter.getValue() + arguments.getDeltaChange());
-                    } else {
-                        // the just increment case - I will have the function return the new value.
-                        counter.increment(arguments.getDeltaChange());
-                        rfc.getResultSender().lastResult(counter.getValue());
-                        //We could do eventual consistency by sending storage later.   It will be significantly faster.
-                        deltaCounterRegion.put(arguments.getCounterName(), counter);
-                        //at this point the delta change has been applied and the delta will be sent to remote sites if there are any.
-                    }
+                    // the just increment case - I will have the function return the new value.
+                    counter.increment(arguments.getDeltaChange());
+                    rfc.getResultSender().lastResult(counter.getValue());
+                    //We could do eventual consistency by sending storage later.   It will be significantly faster.
+                    deltaCounterRegion.put(arguments.getCounterName(), counter);
+                    //at this point the delta change has been applied and the delta will be sent to remote sites if there are any.
                 }
-            } finally {
-                dls.unlock(arguments.getCounterName());
             }
         }
     }
@@ -114,14 +114,5 @@ public class DeltaCounterFunction implements Function {
     @Override
     public boolean hasResult() {
         return true;
-    }
-
-    public static int increment(Region region, String counterName, int deltaChange, int maxValue) {
-
-        ResultCollector collector = FunctionService.onRegion(region)
-                .withFilter(Set.of(counterName)) //important since we will be sending to the primary and this is how.
-                .setArguments(new DeltaCounterFunctionArguments(counterName, deltaChange, maxValue))
-                .execute(ID);
-        return ((Collection<Integer>) collector.getResult()).iterator().next();
     }
 }

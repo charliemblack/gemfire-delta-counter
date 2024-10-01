@@ -23,12 +23,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 @SpringBootApplication
 public class Main {
 
+    private static final MeterRegistry registry = new SimpleMeterRegistry();
+    private Timer timer = Timer.builder("GemFire.Function.Time")
+            .description("Tracks the time taken to execute a method")
+            .publishPercentiles(0.5, 0.95)  // Example percentiles (median and 95th percentile)
+            .publishPercentileHistogram()
+            .register(registry);
+    private boolean exit = false;
     @Value("${dev.gemfire.counters.main.primeRegion:false}")
     private boolean primeRegion = false;
+
     public static void main(String[] args) {
 
         SpringApplication.run(Main.class, args);
     }
+
     @Bean
     CommandLineRunner run(@Value("${gemfire.locator.port:10334}") int port) {
         return args -> {
@@ -56,7 +65,7 @@ public class Main {
                     countDownLatch.countDown();
                 }
             });
-            if(primeRegion){
+            if (primeRegion) {
                 accumulatorRegion.put("name", new DeltaCounter());
             }
             countDownLatch.await();
@@ -65,16 +74,32 @@ public class Main {
             List<Thread> threads = new ArrayList<>();
             final long start = System.currentTimeMillis();
 
-            for (int i = 0; i < 10; i++) {
+
+            for (int i = 0; i < 40; i++) {
                 Thread t = new Thread(() -> {
-                    DeltaCounter counter = new DeltaCounter();
-                    for (int j = 0; j < 100; j++) {
-                            DeltaCounterFunction.increment(accumulatorRegion, "name", 1, 400000);
+                    if (!exit) {
+                        DeltaCounter counter = new DeltaCounter();
+                        for (int j = 0; j < 100; j++) {
+                            timer.record(() -> {
+                                DeltaCounterFunction.increment(accumulatorRegion, "name", 1, 400000);
+                            });
+                        }
                     }
                 });
                 t.start();
                 threads.add(t);
             }
+
+            System.out.println("Press Enter to exit...");
+
+            try {
+                System.in.read();  // Wait for the Enter key
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            exit = true;
+
+            System.out.println("Exiting...");
 
             for (Thread thread : threads) {
                 try {
@@ -84,11 +109,9 @@ public class Main {
                 }
             }
 
-            System.out.println("accumulatorRegion = " + accumulatorRegion.get("name"));
-            System.out.println("atomicInteger = " + atomicInteger);
-            Thread.sleep(5 * 1000);
-            System.out.println("accumulatorRegion = " + accumulatorRegion.get("name"));
-            System.out.println("atomicInteger = " + atomicInteger);
+            registry.get("method.execution.time").timer().takeSnapshot().histogramCounts()
+                    .forEach(count -> System.out.println("Histogram Bucket Count: " + count));
+
         };
     }
 }
