@@ -88,5 +88,5 @@ if "%allStarted%" equ "false" (
 echo Servers started at %TIME%
 :CONTINUE
 
-gfsh -e "connect --locator=%LOCATORS%" -e "create region --name=accumulatorRegion --type=PARTITION_REDUNDANT" -e "deploy --jar=%APP_HOME%/build/libs/gemfire-delta-counter.jar"
+gfsh -e "connect --locator=%LOCATORS%" -e "create region --name=accumulatorRegion --type=PARTITION_REDUNDANT" -e "deploy --jar=%APP_HOME%/build/libs/gemfire-delta-counter-plain.jar"
 REM gfsh -e "connect --locator=%LOCATORS%" -e "create region --name=accumulatorRegion --type=PARTITION_REDUNDANT"

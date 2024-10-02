@@ -15,15 +15,21 @@ spring:
       on-profile: site1
   name: site1
 
-dev:
-  gemfire:
-    counters:
-      main:
-        primeRegion: true
-
 gemfire:
   locator:
     port: 10334
+
+management:
+  metrics:
+    export:
+      logging:
+        enabled: true
+        step: 10s  # Interval at which metrics are pushed to the log
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
 
 ---
 spring:
@@ -32,11 +38,20 @@ spring:
       on-profile: site2
   name: site2
 
-dev:
-  gemfire:
-    counters:
-      main:
-        primeRegion: true
 gemfire:
   locator:
     port: 20334
+
+management:
+  metrics:
+    export:
+      logging:
+        enabled: true
+        step: 10s  # Interval at which metrics are pushed to the log
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+
+
